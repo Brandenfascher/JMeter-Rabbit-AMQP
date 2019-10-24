@@ -105,7 +105,6 @@ public class AMQPPublisher extends AMQPSampler implements Interruptible {
              * Set up the sample result details
              */
             result.setSamplerData(data);
-            result.setResponseData(new String(messageBytes), null);
             result.setDataType(SampleResult.TEXT);
 
             result.setResponseCodeOK();
