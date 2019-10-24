@@ -78,7 +78,7 @@ public abstract class AMQPSamplerGui extends AbstractSamplerGui {
         username.setText(sampler.getUsername());
         password.setText(sampler.getPassword());
         SSL.setSelected(sampler.connectionSSL());
-        log.info("AMQPSamplerGui.configure() called");
+        //log.info("AMQPSamplerGui.configure() called");
     }
 
     /**
@@ -144,7 +144,7 @@ public abstract class AMQPSamplerGui extends AbstractSamplerGui {
         sampler.setUsername(username.getText());
         sampler.setPassword(password.getText());
         sampler.setConnectionSSL(SSL.isSelected());
-        log.info("AMQPSamplerGui.modifyTestElement() called, set user/pass to " + username.getText() + "/" + password.getText() + " on sampler " + sampler);
+        //log.info("AMQPSamplerGui.modifyTestElement() called, set user/pass to " + username.getText() + "/" + password.getText() + " on sampler " + sampler);
     }
 
     protected void init() {

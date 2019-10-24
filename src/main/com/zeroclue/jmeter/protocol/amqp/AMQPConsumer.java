@@ -2,7 +2,9 @@ package com.zeroclue.jmeter.protocol.amqp;
 
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.ConsumerCancelledException;
-import com.rabbitmq.client.QueueingConsumer;
+import com.rabbitmq.client.Consumer;
+import com.rabbitmq.client.GetResponse;
+import com.rabbitmq.client.DefaultConsumer;
 import com.rabbitmq.client.ShutdownSignalException;
 import org.apache.jmeter.samplers.Entry;
 import org.apache.jmeter.samplers.Interruptible;
@@ -41,8 +43,7 @@ public class AMQPConsumer extends AMQPSampler implements Interruptible, TestStat
     private final static String USE_TX = "AMQPConsumer.UseTx";
 
     private transient Channel channel;
-    private transient QueueingConsumer consumer;
-    private transient String consumerTag;
+    private transient DefaultConsumer consumer;
 
     public AMQPConsumer(){
         super();
@@ -66,11 +67,7 @@ public class AMQPConsumer extends AMQPSampler implements Interruptible, TestStat
             // only do this once per thread. Otherwise it slows down the consumption by appx 50%
             if (consumer == null) {
                 log.info("Creating consumer");
-                consumer = new QueueingConsumer(channel);
-            }
-            if (consumerTag == null) {
-                log.info("Starting basic consumer");
-                consumerTag = channel.basicConsume(getQueue(), autoAck(), consumer);
+                consumer = new DefaultConsumer(channel);
             }
         } catch (Exception ex) {
             log.error("Failed to initialize channel", ex);
@@ -86,13 +83,13 @@ public class AMQPConsumer extends AMQPSampler implements Interruptible, TestStat
         // aggregate samples.
         int loop = getIterationsAsInt();
         result.sampleStart(); // Start timing
-        QueueingConsumer.Delivery delivery = null;
+        GetResponse delivery = null;
         try {
             for (int idx = 0; idx < loop; idx++) {
-                delivery = consumer.nextDelivery(getReceiveTimeoutAsInt());
+                delivery = channel.basicGet(getQueue(), autoAck());
 
                 if(delivery == null){
-                    result.setResponseMessage("timed out");
+                    result.setResponseMessage("no messages in queue");
                     return result;
                 }
 
@@ -101,8 +98,7 @@ public class AMQPConsumer extends AMQPSampler implements Interruptible, TestStat
                  */
                 if (getReadResponseAsBoolean()) {
                     String response = new String(delivery.getBody());
-                    result.setSamplerData(response);
-                    result.setResponseMessage(response);
+                    result.setResponseData(response, null);
                 }
                 else {
                     result.setSamplerData("Read response is false.");
@@ -117,7 +113,7 @@ public class AMQPConsumer extends AMQPSampler implements Interruptible, TestStat
                 channel.txCommit();
             }
 
-            result.setResponseData("OK", null);
+            result.setResponseMessage("OK");
             result.setDataType(SampleResult.TEXT);
             result.setResponseHeaders(delivery != null ? formatHeaders(delivery) : null);
 
@@ -128,27 +124,18 @@ public class AMQPConsumer extends AMQPSampler implements Interruptible, TestStat
 
         } catch (ShutdownSignalException e) {
             consumer = null;
-            consumerTag = null;
             log.warn("AMQP consumer failed to consume", e);
             result.setResponseCode("400");
             result.setResponseMessage(e.getMessage());
             interrupt();
         } catch (ConsumerCancelledException e) {
             consumer = null;
-            consumerTag = null;
             log.warn("AMQP consumer failed to consume", e);
             result.setResponseCode("300");
             result.setResponseMessage(e.getMessage());
             interrupt();
-        } catch (InterruptedException e) {
-            consumer = null;
-            consumerTag = null;
-            log.info("interuppted while attempting to consume");
-            result.setResponseCode("200");
-            result.setResponseMessage(e.getMessage());
         } catch (IOException e) {
             consumer = null;
-            consumerTag = null;
             log.warn("AMQP consumer failed to consume", e);
             result.setResponseCode("100");
             result.setResponseMessage(e.getMessage());
@@ -313,14 +300,6 @@ public class AMQPConsumer extends AMQPSampler implements Interruptible, TestStat
 
     public void cleanup() {
 
-        try {
-            if (consumerTag != null) {
-                channel.basicCancel(consumerTag);
-            }
-        } catch(IOException e) {
-            log.error("Couldn't safely cancel the sample " + consumerTag, e);
-        }
-
         super.cleanup();
 
     }
@@ -344,12 +323,12 @@ public class AMQPConsumer extends AMQPSampler implements Interruptible, TestStat
         return ret;
     }
 
-    private String formatHeaders(QueueingConsumer.Delivery delivery){
-        Map<String, Object> headers = delivery.getProperties().getHeaders();
+    private String formatHeaders(GetResponse delivery){
+        Map<String, Object> headers = delivery.getProps().getHeaders();
         StringBuilder sb = new StringBuilder();
         sb.append(TIMESTAMP_PARAMETER).append(": ")
-                .append(delivery.getProperties().getTimestamp() != null && delivery.getProperties().getTimestamp() != null ?
-                        delivery.getProperties().getTimestamp().getTime() : "")
+                .append(delivery.getProps().getTimestamp() != null && delivery.getProps().getTimestamp() != null ?
+                        delivery.getProps().getTimestamp().getTime() : "")
                 .append("\n");
         sb.append(EXCHANGE_PARAMETER).append(": ").append(delivery.getEnvelope().getExchange()).append("\n");
         sb.append(ROUTING_KEY_PARAMETER).append(": ").append(delivery.getEnvelope().getRoutingKey()).append("\n");
