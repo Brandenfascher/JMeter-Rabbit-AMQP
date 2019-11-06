@@ -2,7 +2,9 @@ package com.zeroclue.jmeter.protocol.amqp;
 
 import com.rabbitmq.client.*;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.jmeter.config.Arguments;
 import org.apache.jmeter.samplers.AbstractSampler;
+import org.apache.jmeter.testelement.property.TestElementProperty;
 import org.apache.jmeter.testelement.ThreadListener;
 import org.apache.jorphan.logging.LoggingManager;
 import org.apache.log.Logger;
@@ -56,6 +58,7 @@ public abstract class AMQPSampler extends AbstractSampler implements ThreadListe
     private static final String QUEUE_REDECLARE = "AMQPSampler.Redeclare";
     private static final String QUEUE_EXCLUSIVE = "AMQPSampler.QueueExclusive";
     private static final String QUEUE_AUTO_DELETE = "AMQPSampler.QueueAutoDelete";
+    private static final String QUEUE_OPTIONAL_ARGUMENTS = "AMQPSampler.QueueOptionalArguments";
     private static final int DEFAULT_HEARTBEAT = 1;
 
     private transient ConnectionFactory factory;
@@ -121,6 +124,10 @@ public abstract class AMQPSampler extends AbstractSampler implements ThreadListe
 
         if(getMessageExpires() != null && !getMessageExpires().isEmpty())
             arguments.put("x-expires", getMessageExpiresAsInt());
+
+        if(getQueueOptionalArguments() != null) {
+            arguments.putAll(prepareQueueOptionalArguments());
+        }
 
         return arguments;
     }
@@ -384,6 +391,15 @@ public abstract class AMQPSampler extends AbstractSampler implements ThreadListe
        setProperty(QUEUE_REDECLARE, content);
     }
 
+
+    public Arguments getQueueOptionalArguments() {
+        return (Arguments) getProperty(QUEUE_OPTIONAL_ARGUMENTS).getObjectValue();
+    }
+
+    public void setQueueOptionalArguments(Arguments queueOptionalArguments) {
+        setProperty(new TestElementProperty(QUEUE_OPTIONAL_ARGUMENTS, queueOptionalArguments));
+    }
+
     protected void cleanup() {
         try {
             //getChannel().close();   // closing the connection will close the channel if it's still open
@@ -478,5 +494,14 @@ public abstract class AMQPSampler extends AbstractSampler implements ThreadListe
                 channel.close();
             }
         }
+    }
+
+    private Map<String, Object> prepareQueueOptionalArguments() {
+        Map<String, Object> result = new HashMap<String, Object>();
+        Map<String, String> source = getQueueOptionalArguments().getArgumentsAsMap();
+        for (Map.Entry<String, String> item : source.entrySet()) {
+            result.put(item.getKey(), item.getValue());
+        }
+        return result;
     }
 }

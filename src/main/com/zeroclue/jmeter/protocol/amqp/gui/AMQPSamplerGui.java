@@ -1,6 +1,8 @@
 package com.zeroclue.jmeter.protocol.amqp.gui;
 
 import com.zeroclue.jmeter.protocol.amqp.AMQPSampler;
+import org.apache.jmeter.config.Arguments;
+import org.apache.jmeter.config.gui.ArgumentsPanel;
 import org.apache.jmeter.gui.util.VerticalPanel;
 import org.apache.jmeter.samplers.gui.AbstractSamplerGui;
 import org.apache.jmeter.testelement.TestElement;
@@ -32,6 +34,7 @@ public abstract class AMQPSamplerGui extends AbstractSamplerGui {
     private final JCheckBox queueRedeclare = new JCheckBox("Redeclare?", AMQPSampler.DEFAULT_QUEUE_REDECLARE);
     private final JCheckBox queueExclusive = new JCheckBox("Exclusive", true);
     private final JCheckBox queueAutoDelete = new JCheckBox("Auto Delete?", true);
+    private final ArgumentsPanel queueOptionalArguments = new ArgumentsPanel("Optional Arguments");
 
     protected JLabeledTextField host = new JLabeledTextField("Host");
     protected JLabeledTextField port = new JLabeledTextField("Port");
@@ -69,6 +72,7 @@ public abstract class AMQPSamplerGui extends AbstractSamplerGui {
         queueExclusive.setSelected(sampler.queueExclusive());
         queueAutoDelete.setSelected(sampler.queueAutoDelete());
         queueRedeclare.setSelected(sampler.getQueueRedeclare());
+        configureQueueOptionalArguments(sampler);
 
         timeout.setText(sampler.getTimeout());
         iterations.setText(sampler.getIterations());
@@ -135,6 +139,7 @@ public abstract class AMQPSamplerGui extends AbstractSamplerGui {
         sampler.setQueueExclusive(queueExclusive.isSelected());
         sampler.setQueueAutoDelete(queueAutoDelete.isSelected());
         sampler.setQueueRedeclare(queueRedeclare.isSelected());
+        sampler.setQueueOptionalArguments((Arguments) queueOptionalArguments.createTestElement());
 
         sampler.setTimeout(timeout.getText());
         sampler.setIterations(iterations.getText());
@@ -222,6 +227,10 @@ public abstract class AMQPSamplerGui extends AbstractSamplerGui {
         gridBagConstraints.gridy = 3;
         queueSettings.add(messageExpires, gridBagConstraints);
 
+        gridBagConstraints.gridx = 0;
+        gridBagConstraints.gridy = 4;
+        queueSettings.add(queueOptionalArguments, gridBagConstraints);
+
         gridBagConstraints.gridx = 1;
         gridBagConstraints.gridy = 1;
         queueSettings.add(queueDurable, gridBagConstraints);
@@ -287,4 +296,13 @@ public abstract class AMQPSamplerGui extends AbstractSamplerGui {
         return commonPanel;
     }
 
+    private void configureQueueOptionalArguments(AMQPSampler sampler)
+    {
+        Arguments sampleQueueOptionalArguments = sampler.getQueueOptionalArguments();
+        if (sampleQueueOptionalArguments != null) {
+            queueOptionalArguments.configure(sampleQueueOptionalArguments);
+        } else {
+            queueOptionalArguments.clearGui();
+        }
+    }
 }
